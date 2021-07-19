@@ -5,6 +5,7 @@ import com.programmers.flomusicplayer.models.StartTime
 
 object StringUtil {
 
+    @JvmStatic
     fun parseLyrics(lyricsString: String): List<LyricsItem> {
         val list = mutableListOf<LyricsItem>()
         val splits = lyricsString.split("\n")
@@ -31,6 +32,7 @@ object StringUtil {
      * 노래의 Duration을 00:00으로 표시
      * duration은 ms단위로 넣을 것
      */
+    @JvmStatic
     fun formatSongDuration(duration : Int) : String {
         val totalSeconds = duration / 1000
         val seconds = totalSeconds % 60
