@@ -28,6 +28,7 @@ class FloSongDetailActivity : AppCompatActivity() {
 
     private var mediaPlayer: MediaPlayer? = null
     private var errorSong: Boolean = false // 노래를 준비하다가 오류가 발생했는지 확인
+    private var duration: Int = 0 // 노래의 길이
     private lateinit var mHandler: Handler
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +67,7 @@ class FloSongDetailActivity : AppCompatActivity() {
 
     private fun setEventListener() {
         // 노래 재생/일시정지 버튼
-        binding.songDetailPlayButton.setOnCheckedChangeListener { buttonView, isChecked ->
+        binding.songDetailPlayButton.setOnCheckedChangeListener { _, isChecked ->
             // https://stackoverflow.com/questions/45348820/using-return-inside-a-lambda
             // In Kotlin, return inside a lambda means return from the innermost nesting fun
             // (ignoring lambdas), and it is not allowed in lambdas that are not inlined
@@ -116,11 +117,6 @@ class FloSongDetailActivity : AppCompatActivity() {
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
-
-        mediaPlayer?.setOnSeekCompleteListener {
-            binding.songDetailPlayButton.isChecked = false
-            mediaPlayer?.seekTo(0)
-        }
     }
 
     /**
@@ -179,45 +175,78 @@ class FloSongDetailActivity : AppCompatActivity() {
             return
         }
 
+        duration = mediaPlayer?.duration ?: 0
         syncMediaPlayer(song)
         viewModel.setCurrentTime(0)
-        viewModel.setTotalTime(mediaPlayer?.duration ?: 0)
+        viewModel.setTotalTime(duration)
+
     }
 
     /**
      * MediaPlayer - Seekbar 동기화
      */
     private fun syncMediaPlayer(song: SongItem) {
-        binding.songDetailSeekBar.max = (mediaPlayer?.duration ?: 0) / 1000
+        binding.songDetailSeekBar.max = duration / 1000
         mHandler = Handler(mainLooper)
 
         // 매 시간마다 MediaPlayer - Seekbar - Lyrics 를 동기화 한다
         val timeRunnable = object : Runnable {
             override fun run() {
-                if (mediaPlayer != null) {
-                    val lyricsList = song.lyricsList
-                    val currentMilli = mediaPlayer?.currentPosition ?: 0
-                    val currentSec = currentMilli / 1000
-
-                    // 맞는 가사를 찾고 가사가 변경되었다면 업데이트
-                    val position = findLyricsItemIndex(currentMilli, lyricsList)
-                    if (position != -1) {
-                        val changeLyrics = lyricsList[position].lyrics
-                        if (viewModel.getLiveLyrics().value != changeLyrics) {
-                            Log.d("KBT", "lyrics change!! ${lyricsList[position].lyrics}")
-                            viewModel.setLyrics(lyricsList[position].lyrics)
-                        }
-                    }
-                    
-                    binding.songDetailSeekBar.progress = currentSec // Seekbar Progress 업데이트
-                    viewModel.setCurrentTime(currentMilli) // 현재시간 업데이트
-                    mHandler.postDelayed(this, 1000) // 재귀호출로 1초마다 동작 반복
+                if (mediaPlayer == null) return // MediaPlayer 준비되지 않았을 경우 => 오류?
+                if (mediaPlayer?.isPlaying == false) { // MediaPlayer가 재생중이지 않을경우 => 계산할 것이 없음
+                    mHandler.postDelayed(this, 1000)
+                    return
                 }
+
+                val lyricsList = song.lyricsList
+                val currentMilli = mediaPlayer?.currentPosition ?: 0
+                val currentSec = currentMilli / 1000
+
+                // 노래 재생 종료 처리
+                Log.d("KBT", "${currentMilli}, $duration")
+                if (duration - currentMilli < 1500) {
+                    handleSongEnded()
+                    mHandler.postDelayed(this, 1000)
+                    return
+                }
+
+                // 맞는 가사를 찾고 가사가 변경되었다면 업데이트
+                val position = findLyricsItemIndex(currentMilli, lyricsList)
+                if (position != -1) updateLyrics(position, lyricsList)
+
+                binding.songDetailSeekBar.progress = currentSec // Seekbar Progress 업데이트
+                viewModel.setCurrentTime(currentMilli) // 현재시간 업데이트
+                mHandler.postDelayed(this, 1000)
             }
         }
 
         runOnUiThread {
             mHandler.post(timeRunnable)
+        }
+    }
+
+    /**
+     * 노래가 끝까지 재생됬을때 처리
+     */
+    private fun handleSongEnded() {
+        binding.songDetailPlayButton.isChecked = false
+        binding.songDetailSeekBar.progress = 0
+        mediaPlayer?.seekTo(0)
+        mediaPlayer?.pause()
+        viewModel.setCurrentTime(0)
+        viewModel.setLyrics("")
+    }
+
+    /**
+     * 현재 보고 있는 가사를 업데이트
+     */
+    private fun updateLyrics(position: Int, lyricsList : List<LyricsItem>) {
+        val changeLyrics = lyricsList[position].lyrics
+
+        // 이전 가사와 변경이 이루어졌다면 뷰모델에 알림
+        if (viewModel.getLiveLyrics().value != changeLyrics) {
+            Log.d("KBT", "lyrics change!! ${lyricsList[position].lyrics}")
+            viewModel.setLyrics(lyricsList[position].lyrics)
         }
     }
 

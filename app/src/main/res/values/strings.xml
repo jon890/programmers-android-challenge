@@ -10,6 +10,6 @@
     <string name="hello_first_fragment">Hello first fragment</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
 
-    <string name="not_ready_song">노래를 읽고 있습니다 잠시만 기다려주세요</string>
+    <string name="not_ready_song">노래 재생을 준비중입니다. 잠시만 기다려주세요</string>
     <string name="error_on_song">노래를 읽을 수 없습니다. 다시 시도해주세요</string>
 </resources>

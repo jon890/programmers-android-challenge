@@ -97,6 +97,10 @@
                     android:id="@+id/songDetail_seekBar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:maxWidth="20dp"
+                    android:maxHeight="20dp"
+                    android:minWidth="20dp"
+                    android:minHeight="20dp"
                     android:theme="@style/Theme.FloMusicPlayer.SeekBar"
                     app:layout_constraintTop_toTopOf="parent" />
 
